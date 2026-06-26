@@ -1,26 +1,31 @@
-void main() throws Exception {
-    var organization = "secure-all-the-things-book";
+//usr/bin/env jbang "$0" "$@" ; exit $?
+//JAVA 25
+//DEPS org.springframework.boot:spring-boot-starter:4.1.0
+
+import org.springframework.core.io.UrlResource;
+
+void main(String[] args) throws Exception {
+    var organization = args.length > 0 ? args[0] : "secure-all-the-things-book";
     try (var executor = Executors.newVirtualThreadPerTaskExecutor();) {
         var start = Paths.get(".").resolve("../").toAbsolutePath().normalize().toString();
         IO.println("initializing from " + start);
-        var uri = new URI("https://raw.githubusercontent.com/" + organization + "/__init__/main/repositories.txt");
-        var url = uri.toURL();
+        var uriResource = new UrlResource(new URI("https://raw.githubusercontent.com/" + organization + "/__init__/main/repositories.txt"));
         var callables = new ArrayList<Callable<Void>>();
-        try (var reader = new BufferedReader(new InputStreamReader(url.openStream()))) {
-            for (var line : reader.lines().toList()) {
-                var dirToCreate = new File(start, line);
-                var gitRepo = "git@github.com:" + organization + "/" + line + ".git";
-                callables.add(() -> {
-                    if (!dirToCreate.exists())
-                        runCommand(start, "git", "clone", gitRepo, dirToCreate.getAbsolutePath());
-                    else
-                        runCommand(dirToCreate.getAbsolutePath(), "git", "pull");
-                    return null;
-                });
-            }
-        }
+        for (var repoName : uriResource.getContentAsString(Charset.defaultCharset()).lines().toList())
+            callables.add(buildCallable(start, organization, repoName));
         executor.invokeAll(callables);
     }
+}
+
+private Callable<Void> buildCallable(String start, String organization, String repoName) {
+    return () -> {
+        var dirToCreate = new File(start, repoName);
+        var absolutePath = dirToCreate.getAbsolutePath();
+        if (!dirToCreate.exists())
+            runCommand(start, "git", "clone", "git@github.com:" + organization + "/" + repoName + ".git", absolutePath);
+        else runCommand(absolutePath, "git", "pull");
+        return null;
+    };
 }
 
 private void runCommand(String workingDir, String... command) throws Exception {
@@ -28,6 +33,5 @@ private void runCommand(String workingDir, String... command) throws Exception {
     pb.directory(new File(workingDir));
     pb.inheritIO();
     var process = pb.start();
-    var exitCode = process.waitFor();
-    if (exitCode != 0) IO.println("Command failed with exit code: " + exitCode);
+    if (process.waitFor() != 0) IO.println("Command failed");
 }
