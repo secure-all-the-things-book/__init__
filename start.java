@@ -9,7 +9,9 @@ void main(String[] args) throws Exception {
     try (var executor = Executors.newVirtualThreadPerTaskExecutor();) {
         var start = Paths.get(".").resolve("../").toAbsolutePath().normalize().toString();
         IO.println("initializing from " + start);
-        var uriResource = new UrlResource(new URI("https://raw.githubusercontent.com/" + organization + "/__init__/main/repositories.txt"));
+        //https://raw.githubusercontent.com/secure-all-the-things-book/__init__/refs/heads/main/repositories.txt
+        var uriResource = new UrlResource(new URI("https://raw.githubusercontent.com/" + organization +
+                "/__init__/refs/heads/main/repositories.txt"));
         var callables = new ArrayList<Callable<Void>>();
         for (var repoName : uriResource.getContentAsString(Charset.defaultCharset()).lines().toList())
             callables.add(buildCallable(start, organization, repoName));
