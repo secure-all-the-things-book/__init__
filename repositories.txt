@@ -8,6 +8,7 @@ soap
 shell
 grpc
 gateway
+temp
 design-assets
 book
 pipeline
