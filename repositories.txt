@@ -7,6 +7,7 @@ soap
 shell
 grpc
 gateway
+design-assets
 book
 pipeline
 __init__
