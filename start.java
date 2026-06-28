@@ -7,7 +7,7 @@ import org.springframework.core.io.UrlResource;
 void main(String[] args) throws Exception {
     var organization = args.length > 0 ? args[0] : "secure-all-the-things-book";
     try (var executor = Executors.newVirtualThreadPerTaskExecutor();) {
-        var start = Paths.get(".").resolve("../").toAbsolutePath().normalize().toString();
+        var start = Paths.get(".").toAbsolutePath().normalize().toString();
         IO.println("initializing from " + start);
         var uriResource = new UrlResource(new URI("https://raw.githubusercontent.com/" + organization +
                 "/__init__/refs/heads/main/repositories.txt"));

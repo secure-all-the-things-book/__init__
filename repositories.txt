@@ -5,6 +5,7 @@ java
 messaging
 web
 soap
+beans-to-boot
 shell
 grpc
 gateway
