@@ -1,7 +1,5 @@
 //usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 25
-//DEPS org.springframework.boot:spring-boot-starter:4.1.0
-//DEPS org.asciidoctor:asciidoctorj:3.0.0
 
 void main() throws Exception {
     var when = Instant.now() + "";
