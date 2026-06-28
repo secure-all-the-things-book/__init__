@@ -25,6 +25,6 @@ private void process(Path gitDir) throws IOException, InterruptedException {
     p.waitFor();
     try (var in = p.getInputStream()) {
         if (!new String(in.readAllBytes()).isBlank())
-            IO.println("there are changes in " + repo);
+            IO.println(repo);
     }
 }
