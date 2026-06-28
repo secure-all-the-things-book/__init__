@@ -5,33 +5,26 @@
 void main() throws IOException {
     var start = Paths.get("").toAbsolutePath();
     try (var stream = Files.walk(start)) {
-        stream
-                .filter(Files::isDirectory)
-                .filter(p -> p.getFileName() != null
-                        && p.getFileName().toString().equalsIgnoreCase(".git"))
-                .forEach(path -> {
-                    try {
-                        process(path);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                });
+        stream.forEach(path -> {
+            if (Files.isDirectory(path) && path.getFileName().toString().equalsIgnoreCase(".git")) {
+                try {
+                    process(path);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
     }
 }
 
-private void process(Path gitDir)
-        throws IOException, InterruptedException {
+private void process(Path gitDir) throws IOException, InterruptedException {
     var repo = gitDir.getParent().toAbsolutePath().normalize();
     var p = new ProcessBuilder("git", "status", "--porcelain")
-            .directory(repo.toFile())
-            .redirectErrorStream(true)
+            .directory(repo.toFile()).redirectErrorStream(true)
             .start();
-    var out = (String) null;
-    try (var in = p.getInputStream()) {
-        out = new String(in.readAllBytes());
-    }
     p.waitFor();
-    if (!out.isBlank()) {
-        IO.println("there are changes in " + repo);
+    try (var in = p.getInputStream()) {
+        if (!new String(in.readAllBytes()).isBlank())
+            IO.println("there are changes in " + repo);
     }
 }
