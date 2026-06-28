@@ -10,9 +10,11 @@ void main(String[] args) throws Exception {
         var start = Paths.get(".").toAbsolutePath().normalize().toString();
         IO.println("initializing from " + start);
         var uriResource = new UrlResource(new URI("https://raw.githubusercontent.com/" + organization +
-                "/__init__/refs/heads/main/repositories.txt"));
+                "/__init__/refs/heads/main/repositories.txt?cb=" +System.currentTimeMillis()));
         var callables = new ArrayList<Callable<Void>>();
-        for (var repoName : uriResource.getContentAsString(Charset.defaultCharset()).lines().toList())
+        var content =  uriResource.getContentAsString(Charset.defaultCharset());
+        IO.println("found " + content + " repositories");
+        for (var repoName : content.lines().toList())
             callables.add(buildCallable(start, organization, repoName));
         executor.invokeAll(callables);
     }
