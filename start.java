@@ -4,6 +4,21 @@
 
 import org.springframework.core.io.UrlResource;
 
+void main(String[] args) throws Exception {
+    var organization = args.length > 0 ? args[0] : "secure-all-the-things-book";
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor();) {
+        var start = Paths.get(".").toAbsolutePath().normalize().toString();
+        IO.println("initializing from " + start);
+        var uriResource = new UrlResource(new URI("https://raw.githubusercontent.com/" + organization +
+                "/pipeline/refs/heads/main/src/main/resources/application.properties?cb=" + System.currentTimeMillis()));
+        var callables = new ArrayList<Callable<Void>>();
+        var content =repositories( uriResource.getContentAsString(Charset.defaultCharset()));
+        for (var repoName : content)
+            callables.add(buildCallable(start, organization, repoName));
+        executor.invokeAll(callables);
+    }
+}
+
 private List<String> repositories(String propertiesBuffer) throws IOException {
     var properties = new Properties();
     var totalRepositories = new ArrayList<String>();
@@ -25,21 +40,6 @@ private List<String> repositories(String propertiesBuffer) throws IOException {
         }
     }
     return totalRepositories;
-}
-
-void main(String[] args) throws Exception {
-    var organization = args.length > 0 ? args[0] : "secure-all-the-things-book";
-    try (var executor = Executors.newVirtualThreadPerTaskExecutor();) {
-        var start = Paths.get(".").toAbsolutePath().normalize().toString();
-        IO.println("initializing from " + start);
-        var uriResource = new UrlResource(new URI("https://raw.githubusercontent.com/" + organization +
-                "/pipeline/refs/heads/main/src/main/resources/application.properties?cb=" + System.currentTimeMillis()));
-        var callables = new ArrayList<Callable<Void>>();
-        var content =repositories( uriResource.getContentAsString(Charset.defaultCharset()));
-        for (var repoName : content)
-            callables.add(buildCallable(start, organization, repoName));
-        executor.invokeAll(callables);
-    }
 }
 
 private Callable<Void> buildCallable(String start, String organization, String repoName) {
