@@ -12,7 +12,7 @@ void main(String[] args) throws Exception {
         var uriResource = new UrlResource(new URI("https://raw.githubusercontent.com/" + organization +
                 "/pipeline/refs/heads/main/src/main/resources/application.properties?cb=" + System.currentTimeMillis()));
         var callables = new ArrayList<Callable<Void>>();
-        var content =repositories( uriResource.getContentAsString(Charset.defaultCharset()));
+        var content = repositories(uriResource.getContentAsString(Charset.defaultCharset()));
         for (var repoName : content)
             callables.add(buildCallable(start, organization, repoName));
         executor.invokeAll(callables);
@@ -21,9 +21,7 @@ void main(String[] args) throws Exception {
 
 private List<String> repositories(String propertiesBuffer) throws IOException {
     var properties = new Properties();
-    var totalRepositories = new ArrayList<String>();
-    totalRepositories.add("__init__");
-    totalRepositories.add("design-assets");
+    var totalRepositories = new ArrayList<>(List.of("__init__", "design-assets", "book", "pipeline"));
     try (var bin = new ByteArrayInputStream(propertiesBuffer.getBytes())) {
         properties.load(bin);
         if (properties.get("pipeline.job.code-repositories") instanceof String repositories) {
