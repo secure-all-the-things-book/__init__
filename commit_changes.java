@@ -14,6 +14,7 @@ void main() throws Exception {
                 if (Files.isDirectory(dir) && Files.isDirectory(dir.resolve(".git"))) {
                     var gitStatus = Runner.run(dir, "git", "status");
                     Assert.state(gitStatus == 0, "the git status operation failed");
+                    Runner.run(dir, "git", "add", ".");
                     var c = Runner.run(dir, "git", "commit", "-am", "automatic save @ " + when);
                     if (c == 0) {
                         Runner.run(dir, "git", "push");
