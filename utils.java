@@ -5,10 +5,7 @@ class Runner {
 
     static Process runAndReturnProcess(Path path, String... cmd) throws IOException, InterruptedException {
         var repo = path.getParent().toAbsolutePath().normalize();
-        var p = new ProcessBuilder(cmd)
-                .directory(repo.toFile()) //
-                .redirectErrorStream(true)//
-                .start(); //
+        var p = new ProcessBuilder(cmd).directory(repo.toFile()).redirectErrorStream(true).start();
         p.waitFor();
         return p;
     }
