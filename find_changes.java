@@ -1,6 +1,7 @@
 //usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 25
 //DEPS org.springframework.boot:spring-boot-starter:4.1.0
+//SOURCES Runner.java
 
 void main() throws IOException {
     var start = Paths.get("").toAbsolutePath();
@@ -8,23 +9,15 @@ void main() throws IOException {
         stream.forEach(path -> {
             if (Files.isDirectory(path) && path.getFileName().toString().equalsIgnoreCase(".git")) {
                 try {
-                    process(path);
+                    var proc = Runner.runAndReturnProcess(path, "git", "status", "--porcelain");
+                    try (var in = proc.getInputStream()) {
+                        if (!new String(in.readAllBytes()).isBlank())
+                            IO.println(path.getParent().toAbsolutePath().toString());
+                    }
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
             }
         });
-    }
-}
-
-private void process(Path gitDir) throws IOException, InterruptedException {
-    var repo = gitDir.getParent().toAbsolutePath().normalize();
-    var p = new ProcessBuilder("git", "status", "--porcelain")
-            .directory(repo.toFile()).redirectErrorStream(true)
-            .start();
-    p.waitFor();
-    try (var in = p.getInputStream()) {
-        if (!new String(in.readAllBytes()).isBlank())
-            IO.println(repo);
     }
 }

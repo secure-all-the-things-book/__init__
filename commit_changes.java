@@ -1,5 +1,6 @@
 //usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 25
+//SOURCES Runner.java
 
 void main() throws Exception {
     var when = Instant.now() + "";
@@ -8,10 +9,11 @@ void main() throws Exception {
             if (!line.isBlank()) {
                 var dir = Paths.get(line.trim());
                 if (Files.isDirectory(dir) && Files.isDirectory(dir.resolve(".git"))) {
-                    var c = run(dir, "git", "commit", "-am", "automatic save @ " + when);
+                    var c = Runner.run(dir, "git", "commit", "-am", "automatic save @ " + when);
                     if (c == 0) {
-                        run(dir, "git", "push");
-                    } else {
+                        Runner.run(dir, "git", "push");
+                    } //
+                    else {
                         IO.println("commit returned " + c + " (nothing to commit?), skipping push");
                     }
                 }
@@ -20,6 +22,3 @@ void main() throws Exception {
     }
 }
 
-int run(Path dir, String... cmd) throws IOException, InterruptedException {
-    return new ProcessBuilder(cmd).directory(dir.toFile()).inheritIO().start().waitFor();
-}
