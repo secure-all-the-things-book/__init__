@@ -36,11 +36,12 @@ void process(Path pom, boolean preflight) throws Exception {
 
     var springBootVersion = "4.1.0";
     var mavenJavaFormatMavenPlugin = "0.0.47";
-
+    var javaVersion = "25";
     var processors = List.of(
             new SpringBootParentVersionPomTransformer(springBootVersion), //
             new JavaformatPluginAddingPomTransformer(mavenJavaFormatMavenPlugin), //
-            new JavaformatPluginApplyingPomTransformer()
+            new JavaformatPluginApplyingPomTransformer(),
+            new JavaVersionPomTransformer(javaVersion)
     );
 
     var dbf = DocumentBuilderFactory.newInstance();
@@ -77,10 +78,14 @@ record MavenProject(Path pomFile, Document pom) {
 
 static class JavaVersionPomTransformer implements PomTransformer {
 
-    private final String version = "25";
+    private final String version;// = "25";
+
+    JavaVersionPomTransformer(String version) {
+        this.version = version;
+    }
 
     @Override
-    public void accept(MavenProject mp) {
+    public void acceptWithException(MavenProject mp) throws Exception {
         var doc = mp.pom();
         var project = doc.getDocumentElement();
         var properties = firstChildElement(project, "properties");
