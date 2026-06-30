@@ -1,7 +1,7 @@
 //usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 25
 //DEPS org.springframework.boot:spring-boot-starter:4.1.0
-//SOURCES Runner.java
+//SOURCES utils.java
 
 import org.springframework.util.FileSystemUtils;
 

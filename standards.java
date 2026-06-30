@@ -1,7 +1,7 @@
 //usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 25
 //DEPS org.springframework.boot:spring-boot-starter:4.1.0
-//SOURCES Runner.java
+//SOURCES utils.java
 
 import org.springframework.util.function.ThrowingConsumer;
 import org.w3c.dom.Document;
@@ -33,15 +33,20 @@ void main() throws Exception {
 }
 
 void process(Path pom, boolean preflight) throws Exception {
-
     var springBootVersion = "4.1.0";
     var mavenJavaFormatMavenPlugin = "0.0.47";
+    var springAiVersion = "2.0.0";
     var javaVersion = "25";
+    var springCloudVersion = "2025.1.2";
+    var springModulithVersion = "2.1.0";
     var processors = List.of(
-            new SpringBootParentVersionPomTransformer(springBootVersion), //
-            new JavaformatPluginAddingPomTransformer(mavenJavaFormatMavenPlugin), //
-            new JavaformatPluginApplyingPomTransformer(),
-            new JavaVersionPomTransformer(javaVersion)
+            new SpringBootParentVersionMavenProjectTransformer(springBootVersion), //
+            new JavaformatPluginAddingMavenProjectTransformer(mavenJavaFormatMavenPlugin), //
+            new JavaformatPluginApplyingMavenProjectTransformer(),
+            new PropertiesOverridingMavenProjectTransformer("java.version", javaVersion),
+            new PropertiesOverridingMavenProjectTransformer("spring-ai.version", springAiVersion),
+            new PropertiesOverridingMavenProjectTransformer("spring-cloud.version", springCloudVersion),
+            new PropertiesOverridingMavenProjectTransformer("spring-modulith.version", springModulithVersion)
     );
 
     var dbf = DocumentBuilderFactory.newInstance();
@@ -69,19 +74,21 @@ private static void write(Document doc, boolean preflight, Path pom) throws Exce
     }
 }
 
-interface PomTransformer extends ThrowingConsumer<MavenProject> {
-
+interface MavenProjectTransformer extends ThrowingConsumer<MavenProject> {
 }
 
 record MavenProject(Path pomFile, Document pom) {
 }
 
-static class JavaVersionPomTransformer implements PomTransformer {
+static class PropertiesOverridingMavenProjectTransformer implements MavenProjectTransformer {
 
-    private final String version;// = "25";
+    private final String propertyValue;
 
-    JavaVersionPomTransformer(String version) {
-        this.version = version;
+    private final String propertyName;
+
+    PropertiesOverridingMavenProjectTransformer(String propertyName, String propertyValue) {
+        this.propertyValue = propertyValue;
+        this.propertyName = propertyName;
     }
 
     @Override
@@ -93,19 +100,18 @@ static class JavaVersionPomTransformer implements PomTransformer {
             properties = doc.createElement("properties");
             project.appendChild(properties);
         }
-        var javaVersion = firstChildElement(properties, "java.version");
-        if (javaVersion == null) {
-            javaVersion = doc.createElement("java.version");
-            properties.appendChild(javaVersion);
+        var propertyElement = firstChildElement(properties, this.propertyName);
+        if (propertyElement == null) {
+            propertyElement = doc.createElement(this.propertyName);
+            properties.appendChild(propertyElement);
         }
-        if (!version.equals(javaVersion.getTextContent().trim())) {
-            javaVersion.setTextContent(version);
+        if (!propertyValue.equals(propertyElement.getTextContent().trim())) {
+            propertyElement.setTextContent(this.propertyValue);
         }
     }
 }
 
-
-static class JavaformatPluginApplyingPomTransformer implements PomTransformer {
+static class JavaformatPluginApplyingMavenProjectTransformer implements MavenProjectTransformer {
 
     @Override
     public void acceptWithException(MavenProject document) throws Exception {
@@ -120,13 +126,13 @@ static class JavaformatPluginApplyingPomTransformer implements PomTransformer {
     }
 }
 
-static class JavaformatPluginAddingPomTransformer implements PomTransformer {
+static class JavaformatPluginAddingMavenProjectTransformer implements MavenProjectTransformer {
 
     private final String groupId = "io.spring.javaformat";
     private final String artifactId = "spring-javaformat-maven-plugin";
     private final String version;
 
-    JavaformatPluginAddingPomTransformer(String version) {
+    JavaformatPluginAddingMavenProjectTransformer(String version) {
         this.version = version;
     }
 
@@ -141,13 +147,13 @@ static class JavaformatPluginAddingPomTransformer implements PomTransformer {
 
 }
 
-static class SpringBootParentVersionPomTransformer implements PomTransformer {
+static class SpringBootParentVersionMavenProjectTransformer implements MavenProjectTransformer {
 
     private final String groupId = "org.springframework.boot";
     private final String artifactId = "spring-boot-starter-parent";
     private final String version;
 
-    SpringBootParentVersionPomTransformer(String version) {
+    SpringBootParentVersionMavenProjectTransformer(String version) {
         this.version = version;
     }
 
