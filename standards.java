@@ -20,15 +20,22 @@ import javax.xml.xpath.XPathFactory;
 
 
 void main() throws Exception {
-    var root = Paths.get(".");
-    var preflight = false;
-    try (var paths = Files.walk(root)) {
-        var poms = paths
-                .filter(Files::isRegularFile)
-                .filter(p -> p.getFileName().toString().equals("pom.xml"))
-                .toList();
-        for (var pom : poms)
-            process(pom, preflight);
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor();) {
+        var callables = new ArrayList<Callable<Void>>();
+        var root = Paths.get(".");
+        var preflight = false;
+        try (var paths = Files.walk(root)) {
+            var poms = paths
+                    .filter(Files::isRegularFile)
+                    .filter(p -> p.getFileName().toString().equals("pom.xml"))
+                    .toList();
+            for (var pom : poms)
+                callables.add(() -> {
+                    process(pom, preflight);
+                    return null;
+                });
+            executor.invokeAll(callables);
+        }
     }
 }
 
