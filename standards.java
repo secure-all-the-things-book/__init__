@@ -21,6 +21,7 @@ import javax.xml.xpath.XPathFactory;
 
 void main() throws Exception {
     try (var executor = Executors.newVirtualThreadPerTaskExecutor();) {
+        var start = System.currentTimeMillis();
         var callables = new ArrayList<Callable<Void>>();
         var root = Paths.get(".");
         var preflight = false;
@@ -35,6 +36,8 @@ void main() throws Exception {
                     return null;
                 });
             executor.invokeAll(callables);
+            var stop = System.currentTimeMillis();
+            IO.println("total time in ms.:" + (stop - start));
         }
     }
 }
