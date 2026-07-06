@@ -1,0 +1,37 @@
+= Sample
+
+Some intro text.
+
+[source,java]
+----
+include::{code}/java/Foo.java[]
+----
+
+Now a bare block that is MISSING its source attributes:
+
+[source,java]
+----
+include::{code}/java/switches/EnhancedSwitchExpressionTest.java[]
+----
+
+Some more text and a bare shell block:
+
+[source,shell]
+----
+sdk install java
+sdk default java
+----
+
+A properly attributed shell block:
+
+[source,shell]
+----
+echo hi
+----
+
+Bare inline code:
+
+[source,java]
+----
+IO.println("hello");
+----
