@@ -35,9 +35,10 @@ void main() throws IOException {
 
 class AuditorApplication {
 
-
-    public static record Errors(Collection<String> unresolvedIncludes, Collection<String> unresolvedImages,
-                                Collection<String> unresolvedCallouts) {
+    public static record Errors(Collection<String> unresolvedIncludes, //
+                                Collection<String> unresolvedImages,//
+                                Collection<String> unresolvedCallouts //
+    ) {
     }
 
     interface ErrorClassifier extends BiConsumer<Errors, LogRecord> {
@@ -52,7 +53,8 @@ class AuditorApplication {
     }
 
     private static void unresolvedInclude(Errors errors, LogRecord message) {
-        if (message.getMessage().contains("include file not found:")) errors.unresolvedIncludes().add(context(message));
+        if (message.getMessage().contains("include file not found:"))
+            errors.unresolvedIncludes().add(context(message));
     }
 
     private static Errors validate(File adoc, File codeRootFolder) {
@@ -67,8 +69,11 @@ class AuditorApplication {
             };
             asciidoctor.registerLogHandler(handler);
             var attributes = Attributes.builder().attribute("code", codeRootFolder.getAbsolutePath()).build();
-            var options = Options.builder().safe(SafeMode.UNSAFE)          // needed so include:: directives are processed
-                    .baseDir(adoc.getParentFile()).toFile(false)                  // render to string, not to disk
+            var options = Options //
+                    .builder() //
+                    .safe(SafeMode.UNSAFE) //
+                    .baseDir(adoc.getParentFile()) //
+                    .toFile(false)
                     .attributes(attributes).build();
             var adocDocument = asciidoctor.loadFile(adoc, options);
             for (var missingImage : collectBadImages(adoc.getParentFile(), adocDocument)) {
