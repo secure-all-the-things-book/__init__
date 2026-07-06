@@ -29,11 +29,11 @@ void main() throws IOException {
     try (var stream = Files.walk(root.toPath())) {
         var adocs = stream.filter(Files::isRegularFile).filter(p -> p.toString().endsWith(".adoc")).toList();
         for (var input : adocs)
-            AuditorApplication.validateAdoc(input.toFile(), root);
+            Auditor.validateAdoc(input.toFile(), root);
     }
 }
 
-class AuditorApplication {
+class Auditor {
 
     public static record Errors(Collection<String> unresolvedIncludes, //
                                 Collection<String> unresolvedImages,//
@@ -58,7 +58,7 @@ class AuditorApplication {
     }
 
     private static Errors validate(File adoc, File codeRootFolder) {
-        var analysers = List.<ErrorClassifier>of(AuditorApplication::unresolvedCallout, AuditorApplication::unresolvedInclude);
+        var analysers = List.<ErrorClassifier>of(Auditor::unresolvedCallout, Auditor::unresolvedInclude);
         var errors = new Errors(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
         IO.println("inspecting " + adoc.getAbsolutePath() + " with {code} value " + codeRootFolder.getAbsolutePath());
         try (var asciidoctor = Asciidoctor.Factory.create()) {
@@ -83,11 +83,11 @@ class AuditorApplication {
         }
         return errors;
     }
-
-    static record BadImage(String target, Path resolved, int line) {
+    
+    private static record BadImage(String target, Path resolved, int line) {
     }
 
-    static List<BadImage> collectBadImages(File baseDir, Document doc) {
+    private static List<BadImage> collectBadImages(File baseDir, Document doc) {
         var list = new ArrayList<BadImage>();
         collectBadImages(doc, doc, baseDir, list);
         return list;
