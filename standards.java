@@ -197,7 +197,7 @@ static void stripWhitespaceNodes(Document doc) throws XPathExpressionException {
     var xp = XPathFactory.newInstance().newXPath();
     var empty = (NodeList) xp.evaluate(
             "//text()[normalize-space(.)='']", doc, XPathConstants.NODESET);
-    for (int i = 0; i < empty.getLength(); i++) {
+    for (var i = 0; i < empty.getLength(); i++) {
         var node = empty.item(i);
         node.getParentNode().removeChild(node);
     }
