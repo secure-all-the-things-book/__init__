@@ -31,7 +31,6 @@ void main(String[] args) throws Exception {
 }
 
 static void invoke (String program, String line) throws Exception {
-    IO.println ("invoking " +program + " for line " + line);
     var dir = new File(".").getAbsoluteFile();
     // stdin must be a PIPE so we can feed the changed directory to the child;
     // stdout/stderr INHERIT so the child's output streams straight to our console.
