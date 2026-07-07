@@ -1,7 +1,17 @@
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.*;
+import java.io.*;
 
 class Runner {
+
+
+    static List<String> runAndReturnOutputLines(Path p, String... cmd) throws IOException, InterruptedException {
+        var ps = runAndReturnProcess(p, cmd);
+        try (var r = new BufferedReader(new InputStreamReader(ps.getInputStream()))) {
+            return r.readAllLines();
+        }
+    }
 
     static Process runAndReturnProcess(Path path, String... cmd) throws IOException, InterruptedException {
         var repo = path.getParent().toAbsolutePath().normalize();
