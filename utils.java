@@ -20,9 +20,13 @@ class Runner {
         return p;
     }
 
+    static Process runButDontWait(Path dir, String ... cmd) throws IOException, InterruptedException {
+        return new ProcessBuilder(cmd).directory(dir.toFile()).inheritIO().start();
+    }
+
     static int run(Path dir, String... cmd) throws IOException, InterruptedException {
-        IO.println("current directory is " + dir.toString());
-        return new ProcessBuilder(cmd).directory(dir.toFile()).inheritIO().start().waitFor();
+        return runButDontWait (dir,cmd)
+            .waitFor();
     }
 
 }
