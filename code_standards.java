@@ -18,7 +18,6 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
-
 void main() throws Exception {
     try (var executor = Executors.newVirtualThreadPerTaskExecutor();) {
         var start = System.currentTimeMillis();

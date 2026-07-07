@@ -3,7 +3,6 @@
 //DEPS org.springframework.boot:spring-boot-starter:4.1.0
 //DEPS org.asciidoctor:asciidoctorj:3.0.0
 
-
 import org.asciidoctor.Asciidoctor;
 import org.asciidoctor.Options;
 import org.asciidoctor.SafeMode;
@@ -48,7 +47,7 @@ void main(String[] args) throws Exception {
 
 
 void process(Path adoc) {
-    try{
+    try {
         var result = ListingAttributeFixer.fix(adoc.toFile());
         Files.writeString(adoc, result.content());
     } //
