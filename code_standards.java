@@ -18,6 +18,98 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
+private static void write(Document doc, boolean preflight, Path pom) throws Exception {
+    stripWhitespaceNodes(doc);
+
+    try (var sw = preflight ? new StringWriter() : new FileWriter(pom.toFile())) {
+        write(doc, sw);
+        if (preflight)
+            IO.println("transformed pom.xml: " + sw);
+    }
+}
+
+static void stripWhitespaceNodes(Document doc) throws XPathExpressionException {
+    var xp = XPathFactory.newInstance().newXPath();
+    var empty = (NodeList) xp.evaluate(
+            "//text()[normalize-space(.)='']", doc, XPathConstants.NODESET);
+    for (var i = 0; i < empty.getLength(); i++) {
+        var node = empty.item(i);
+        node.getParentNode().removeChild(node);
+    }
+}
+
+/**
+ * True if a <plugin> with our groupId + artifactId already exists anywhere.
+ */
+static boolean hasPlugin(Document doc, String groupId, String artifactId) {
+    var plugins = doc.getElementsByTagName("plugin");
+    for (var i = 0; i < plugins.getLength(); i++) {
+        var plugin = (Element) plugins.item(i);
+        var gid = childText(plugin, "groupId");
+        var aid = childText(plugin, "artifactId");
+        if (groupId.equals(gid) && artifactId.equals(aid)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Find or create <project><build><plugins>, returning the plugins element.
+ */
+static Element ensurePluginsElement(Document doc) {
+    var project = doc.getDocumentElement();
+    var build = firstChildElement(project, "build");
+    if (build == null) {
+        build = doc.createElement("build");
+        project.appendChild(build);
+    }
+    var plugins = firstChildElement(build, "plugins");
+    if (plugins == null) {
+        plugins = doc.createElement("plugins");
+        build.appendChild(plugins);
+    }
+    return plugins;
+}
+
+static Element buildPluginElement(Document doc, String groupId, String artifactId, String version) {
+    var plugin = doc.createElement("plugin");
+    plugin.appendChild(textElement(doc, "groupId", groupId));
+    plugin.appendChild(textElement(doc, "artifactId", artifactId));
+    plugin.appendChild(textElement(doc, "version", version));
+    return plugin;
+}
+
+// --- small DOM helpers ---
+static Element firstChildElement(Element parent, String name) {
+    var children = parent.getChildNodes();
+    for (var i = 0; i < children.getLength(); i++) {
+        var n = children.item(i);
+        if (n.getNodeType() == Node.ELEMENT_NODE && n.getNodeName().equals(name)) {
+            return (Element) n;
+        }
+    }
+    return null;
+}
+
+static String childText(Element parent, String name) {
+    var e = firstChildElement(parent, name);
+    return e == null ? null : e.getTextContent().trim();
+}
+
+static Element textElement(Document doc, String name, String value) {
+    var e = doc.createElement(name);
+    e.setTextContent(value);
+    return e;
+}
+
+static void write(Document doc, Writer pom) throws Exception {
+    var t = TransformerFactory.newInstance().newTransformer();
+    t.setOutputProperty(OutputKeys.INDENT, "yes");
+    t.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+    t.transform(new DOMSource(doc), new StreamResult(pom));
+}
+
 void main() throws Exception {
     try (var executor = Executors.newVirtualThreadPerTaskExecutor();) {
         var start = System.currentTimeMillis();
@@ -70,16 +162,6 @@ void process(Path pom, boolean preflight) throws Exception {
     for (var p : processors) {
         p.accept(mavenProject);
         write(doc, preflight, pom);
-    }
-}
-
-private static void write(Document doc, boolean preflight, Path pom) throws Exception {
-    stripWhitespaceNodes(doc);
-
-    try (var sw = preflight ? new StringWriter() : new FileWriter(pom.toFile())) {
-        write(doc, sw);
-        if (preflight)
-            IO.println("transformed pom.xml: " + sw);
     }
 }
 
@@ -190,87 +272,4 @@ static class SpringBootParentVersionMavenProjectTransformer implements MavenProj
         }
     }
 
-}
-
-static void stripWhitespaceNodes(Document doc) throws XPathExpressionException {
-    var xp = XPathFactory.newInstance().newXPath();
-    var empty = (NodeList) xp.evaluate(
-            "//text()[normalize-space(.)='']", doc, XPathConstants.NODESET);
-    for (var i = 0; i < empty.getLength(); i++) {
-        var node = empty.item(i);
-        node.getParentNode().removeChild(node);
-    }
-}
-
-/**
- * True if a <plugin> with our groupId + artifactId already exists anywhere.
- */
-static boolean hasPlugin(Document doc, String groupId, String artifactId) {
-    var plugins = doc.getElementsByTagName("plugin");
-    for (var i = 0; i < plugins.getLength(); i++) {
-        var plugin = (Element) plugins.item(i);
-        var gid = childText(plugin, "groupId");
-        var aid = childText(plugin, "artifactId");
-        if (groupId.equals(gid) && artifactId.equals(aid)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/**
- * Find or create <project><build><plugins>, returning the plugins element.
- */
-static Element ensurePluginsElement(Document doc) {
-    var project = doc.getDocumentElement();
-    var build = firstChildElement(project, "build");
-    if (build == null) {
-        build = doc.createElement("build");
-        project.appendChild(build);
-    }
-    var plugins = firstChildElement(build, "plugins");
-    if (plugins == null) {
-        plugins = doc.createElement("plugins");
-        build.appendChild(plugins);
-    }
-    return plugins;
-}
-
-static Element buildPluginElement(Document doc, String groupId, String artifactId, String version) {
-    var plugin = doc.createElement("plugin");
-    plugin.appendChild(textElement(doc, "groupId", groupId));
-    plugin.appendChild(textElement(doc, "artifactId", artifactId));
-    plugin.appendChild(textElement(doc, "version", version));
-    return plugin;
-}
-
-// --- small DOM helpers ---
-static Element firstChildElement(Element parent, String name) {
-    var children = parent.getChildNodes();
-    for (var i = 0; i < children.getLength(); i++) {
-        var n = children.item(i);
-        if (n.getNodeType() == Node.ELEMENT_NODE && n.getNodeName().equals(name)) {
-            return (Element) n;
-        }
-    }
-    return null;
-}
-
-static String childText(Element parent, String name) {
-    var e = firstChildElement(parent, name);
-    return e == null ? null : e.getTextContent().trim();
-}
-
-static Element textElement(Document doc, String name, String value) {
-    var e = doc.createElement(name);
-    e.setTextContent(value);
-    return e;
-}
-
-
-static void write(Document doc, Writer pom) throws Exception {
-    var t = TransformerFactory.newInstance().newTransformer();
-    t.setOutputProperty(OutputKeys.INDENT, "yes");
-    t.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
-    t.transform(new DOMSource(doc), new StreamResult(pom));
 }

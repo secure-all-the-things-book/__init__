@@ -35,15 +35,6 @@ void main() throws IOException {
 
 class Auditor {
 
-    public static record Errors(Collection<String> unresolvedIncludes, //
-                                Collection<String> unresolvedImages,//
-                                Collection<String> unresolvedCallouts //
-    ) {
-    }
-
-    interface ErrorClassifier extends BiConsumer<Errors, LogRecord> {
-    }
-
     private static void unresolvedCallout(Errors errors, LogRecord message) {
         if (message.getMessage().contains("no callout found for")) errors.unresolvedCallouts().add(context(message));
     }
@@ -82,9 +73,6 @@ class Auditor {
             asciidoctor.convertFile(adoc, options); // we don't care about the result
         }
         return errors;
-    }
-    
-    private static record BadImage(String target, Path resolved, int line) {
     }
 
     private static List<BadImage> collectBadImages(File baseDir, Document doc) {
@@ -136,5 +124,17 @@ class Auditor {
 
         for (var entry : errors.unresolvedIncludes())
             IO.println("missing include: " + entry);
+    }
+
+    interface ErrorClassifier extends BiConsumer<Errors, LogRecord> {
+    }
+
+    public static record Errors(Collection<String> unresolvedIncludes, //
+                                Collection<String> unresolvedImages,//
+                                Collection<String> unresolvedCallouts //
+    ) {
+    }
+
+    private static record BadImage(String target, Path resolved, int line) {
     }
 }

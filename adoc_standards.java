@@ -34,7 +34,7 @@ void main(String[] args) throws Exception {
                 callables.add(() -> {
                     process(adoc);
                     replaceDashes(adoc);
-                    replaceCommonWords (adoc);
+                    replaceCommonWords(adoc);
                     return null;
                 });
             }
@@ -43,12 +43,11 @@ void main(String[] args) throws Exception {
     }
 }
 
-void replaceCommonWords (Path adoc) throws IOException {
+void replaceCommonWords(Path adoc) throws IOException {
 
-    var content = Files.readString (adoc, StandardCharsets.UTF_8)
-            .replaceAll ("multi-factor", "multifactor")
-            ;
-    Files.writeString (adoc, content, StandardCharsets.UTF_8);
+    var content = Files.readString(adoc, StandardCharsets.UTF_8)
+            .replaceAll("multi-factor", "multifactor");
+    Files.writeString(adoc, content, StandardCharsets.UTF_8);
 
 }
 
@@ -71,27 +70,12 @@ void process(Path adoc) {
 
 class ListingAttributeFixer {
 
-    /**
-     * a single correction: the (pre-edit, 1-based) delimiter line, the attribute line, and why.
-     */
-    record Fix(int line, String inserted, String reason) {
-    }
-
-    /**
-     * the corrected document held in memory, plus the list of corrections applied.
-     */
-    record Result(String content, List<Fix> fixes) {
-    }
-
     // include::path/to/File.ext[...] -> capture the include target path
     private static final Pattern INCLUDE = Pattern.compile("include::([^\\[]+)\\[");
-
     // a stand-alone block attribute line, e.g. [source], [listing], [source,java,indent=0]
     private static final Pattern ATTRIBUTE_LINE = Pattern.compile("^\\s*\\[.*]\\s*$");
-
     // a source attribute line that already declares a language, e.g. [source,java...]
     private static final Pattern SOURCE_WITH_LANG = Pattern.compile("^\\s*\\[source\\s*,\\s*[^,\\]]+.*]\\s*$");
-
     // file extension -> Asciidoctor source language token
     private static final Map<String, String> LANGUAGES = Map.ofEntries( //
             Map.entry("java", "java"), //
@@ -222,9 +206,6 @@ class ListingAttributeFixer {
         return line.substring(0, line.length() - line.stripLeading().length());
     }
 
-    private record Guess(String language, String reason) {
-    }
-
     /**
      * Best-guess language for a block: the include filename suffix first, then a light content sniff.
      */
@@ -266,5 +247,20 @@ class ListingAttributeFixer {
         var name = slash >= 0 ? path.substring(slash + 1) : path;
         var dot = name.lastIndexOf('.');
         return dot >= 0 ? name.substring(dot + 1).toLowerCase() : "";
+    }
+
+    /**
+     * a single correction: the (pre-edit, 1-based) delimiter line, the attribute line, and why.
+     */
+    record Fix(int line, String inserted, String reason) {
+    }
+
+    /**
+     * the corrected document held in memory, plus the list of corrections applied.
+     */
+    record Result(String content, List<Fix> fixes) {
+    }
+
+    private record Guess(String language, String reason) {
     }
 }

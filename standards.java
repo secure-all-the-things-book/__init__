@@ -20,7 +20,7 @@ void main(String[] args) throws Exception {
         Assert.state(scriptFile.exists(), "the script named " + scriptFile.getAbsolutePath() + " doesn't exist!");
         var fqn = scriptFile.getAbsolutePath();
         IO.println("invoking " + fqn);
-        Runner.run(Paths.get("."),fqn);
+        Runner.run(Paths.get("."), fqn);
     }
 
 }
