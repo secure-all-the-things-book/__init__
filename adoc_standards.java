@@ -34,12 +34,22 @@ void main(String[] args) throws Exception {
                 callables.add(() -> {
                     process(adoc);
                     replaceDashes(adoc);
+                    replaceCommonWords (adoc);
                     return null;
                 });
             }
             executor.invokeAll(callables);
         }
     }
+}
+
+void replaceCommonWords (Path adoc) throws IOException {
+
+    var content = Files.readString (adoc, StandardCharsets.UTF_8)
+            .replaceAll ("multi-factor", "multifactor")
+            ;
+    Files.writeString (adoc, content, StandardCharsets.UTF_8);
+
 }
 
 void replaceDashes(Path filePath) throws IOException {
