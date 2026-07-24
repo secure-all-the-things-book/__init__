@@ -33,6 +33,7 @@ void main(String[] args) throws Exception {
             for (var adoc : adocs) {
                 callables.add(() -> {
                     process(adoc);
+                    replaceDashes(adoc);
                     return null;
                 });
             }
@@ -41,10 +42,12 @@ void main(String[] args) throws Exception {
     }
 }
 
-
-//    var result = ListingAttributeFixer.fix(target);
-//    Files.writeString(target.toPath(), result.content());
-
+void replaceDashes(Path filePath) throws IOException {
+    var file = filePath.toFile();
+    var content = Files.readString(filePath, StandardCharsets.UTF_8)
+            .replaceAll("[\u2013\u2014]", " - ");
+    Files.writeString(filePath, content, StandardCharsets.UTF_8);
+}
 
 void process(Path adoc) {
     try {
