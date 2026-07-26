@@ -141,6 +141,7 @@ void process(Path pom, boolean preflight) throws Exception {
     var springCloudVersion = "2025.1.2";
     var springModulithVersion = "2.1.0";
     var processors = List.of(
+            new GroupIdMavenProjectTransformer("com.secureallthethingsbook"), //
             new SpringBootParentVersionMavenProjectTransformer(springBootVersion), //
             new JavaformatPluginAddingMavenProjectTransformer(mavenJavaFormatMavenPlugin), //
             new JavaformatPluginApplyingMavenProjectTransformer(),
@@ -234,6 +235,30 @@ static class JavaformatPluginAddingMavenProjectTransformer implements MavenProje
         }
         var plugins = ensurePluginsElement(doc.pom());
         plugins.appendChild(buildPluginElement(doc.pom(), groupId, artifactId, version));
+    }
+
+}
+
+static class GroupIdMavenProjectTransformer implements MavenProjectTransformer {
+
+    private final String groupId;
+
+    GroupIdMavenProjectTransformer(String groupId) {
+        this.groupId = groupId;
+    }
+
+    @Override
+    public void acceptWithException(MavenProject mp) throws Exception {
+        var doc = mp.pom();
+        var project = doc.getDocumentElement();
+        var groupIdEl = firstChildElement(project, "groupId");
+        if (groupIdEl == null) {
+            groupIdEl = doc.createElement("groupId");
+            project.appendChild(groupIdEl);
+        }
+        if (!groupId.equals(groupIdEl.getTextContent().trim())) {
+            groupIdEl.setTextContent(this.groupId);
+        }
     }
 
 }
