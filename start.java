@@ -9,6 +9,8 @@ void main(String[] args) throws Exception {
     try (var executor = Executors.newVirtualThreadPerTaskExecutor();) {
         var start = Paths.get(".").toAbsolutePath().normalize().toString();
         IO.println("initializing from " + start);
+
+        // todo https://github.com/secure-all-the-things-book/pipeline/blob/main/src/main/resources/application.properties
         var uriResource = new UrlResource(new URI("https://raw.githubusercontent.com/" + organization +
                 "/pipeline/refs/heads/main/src/main/resources/application.properties?cb=" + System.currentTimeMillis()));
         var callables = new ArrayList<Callable<Void>>();
@@ -42,6 +44,7 @@ private List<String> repositories(String propertiesBuffer) throws IOException {
 
 private Callable<Void> buildCallable(String start, String organization, String repoName) {
     return () -> {
+        IO.println("cloning " + start + '/' + organization +'/' +repoName);
         var dirToCreate = new File(start, repoName);
         var absolutePath = dirToCreate.getAbsolutePath();
         if (!dirToCreate.exists())
