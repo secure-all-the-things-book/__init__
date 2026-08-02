@@ -4,6 +4,7 @@
 //SOURCES utils.java
 
 import org.springframework.util.function.ThrowingConsumer;
+import org.yaml.snakeyaml.Yaml;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -148,7 +149,8 @@ void process(Path pom, boolean preflight) throws Exception {
             new PropertiesOverridingMavenProjectTransformer("java.version", javaVersion),
             new PropertiesOverridingMavenProjectTransformer("spring-ai.version", springAiVersion),
             new PropertiesOverridingMavenProjectTransformer("spring-cloud.version", springCloudVersion),
-            new PropertiesOverridingMavenProjectTransformer("spring-modulith.version", springModulithVersion)
+            new PropertiesOverridingMavenProjectTransformer("spring-modulith.version", springModulithVersion),
+            new VirtualThreadsEnabledMavenProjectTransformer()
     );
 
     var dbf = DocumentBuilderFactory.newInstance();
@@ -295,6 +297,234 @@ static class SpringBootParentVersionMavenProjectTransformer implements MavenProj
         else if (!version.equals(versionEl.getTextContent().trim())) {
             versionEl.setTextContent(version);
         }
+    }
+
+}
+
+/**
+ * Ensures every project enables virtual threads by guaranteeing the equivalent of
+ * {@code spring.threads.virtual.enabled=true} lives in its {@code application.properties}
+ * or {@code application.yml}/{@code application.yaml}. If the setting is already present
+ * (in any form) the file is left untouched; otherwise it is added at the very bottom,
+ * using the proper nested hierarchy when the file is YAML.
+ */
+static class VirtualThreadsEnabledMavenProjectTransformer implements MavenProjectTransformer {
+
+    static final String VT_KEY = "spring.threads.virtual.enabled";
+
+    @Override
+    public void acceptWithException(MavenProject mp) throws Exception {
+        var moduleDir = mp.pomFile().toAbsolutePath().normalize().getParent();
+        var resources = moduleDir.resolve("src/main/resources");
+        if (!Files.isDirectory(resources)) {
+            return; // not an application module (e.g. a parent / BOM pom)
+        }
+
+        var properties = resources.resolve("application.properties");
+        var yml = resources.resolve("application.yml");
+        var yaml = resources.resolve("application.yaml");
+
+        var handled = false;
+        if (Files.isRegularFile(properties)) {
+            ensureInProperties(properties);
+            handled = true;
+        }
+        if (Files.isRegularFile(yml)) {
+            ensureInYaml(yml);
+            handled = true;
+        }
+        if (Files.isRegularFile(yaml)) {
+            ensureInYaml(yaml);
+            handled = true;
+        }
+        if (!handled) {
+            // No config file at all yet; establish the standard in application.properties.
+            //ensureInProperties(properties);
+        }
+    }
+
+    static void ensureInProperties(Path file) throws Exception {
+        var exists = Files.isRegularFile(file);
+        var text = exists ? Files.readString(file) : "";
+        if (exists && propertiesHasKey(text, VT_KEY)) {
+            return; // already present; leave it alone
+        }
+        var sb = new StringBuilder(text);
+        if (!text.isEmpty() && !text.endsWith("\n")) {
+            sb.append('\n');
+        }
+        sb.append(VT_KEY).append("=true").append('\n');
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, sb.toString());
+    }
+
+    static void ensureInYaml(Path file) throws Exception {
+        var text = Files.readString(file);
+        // SnakeYAML is used only to *detect* whether the key already exists; it never
+        // rewrites the file, so existing comments (e.g. AsciiDoctor callouts) stay intact.
+        if (yamlHasKey(asStringKeyedMap(new Yaml().load(text)), VT_KEY)) {
+            return; // already present; leave it alone
+        }
+        // Missing — splice the minimal set of nested lines into the existing hierarchy
+        // (or, if there is no spring: block, append the whole chain at the very bottom)
+        // via pure text editing, so nothing else in the file moves or changes.
+        Files.writeString(file, insertYamlPath(text, List.of("spring", "threads", "virtual", "enabled"), "true"));
+    }
+
+    /**
+     * Inserts {@code path} (e.g. spring/threads/virtual/enabled) with {@code value} into a
+     * block-style YAML document using text editing only. Reuses whatever leading segments
+     * already exist, appends the remaining segments to the bottom of the deepest matching
+     * block, and leaves every other line — including comments and blank lines — untouched.
+     */
+    static String insertYamlPath(String text, List<String> path, String value) {
+        var eol = text.contains("\r\n") ? "\r\n" : "\n";
+        var lines = new ArrayList<>(Arrays.asList(text.split("\r\n|\r|\n", -1)));
+        var step = detectStep(lines);
+
+        var start = 0;              // start of the current parent's block (inclusive)
+        var end = lines.size();     // end of the current parent's block (exclusive)
+        var parentIndent = -step;   // sentinel so top-level children sit at indent 0
+        var matched = 0;            // number of leading path segments already present
+
+        for (; matched < path.size(); matched++) {
+            var childIndent = parentIndent + step;
+            var found = -1;
+            for (var i = start; i < end; i++) {
+                var line = lines.get(i);
+                if (isSkippable(line)) {
+                    continue;
+                }
+                var indent = indentOf(line);
+                if (indent <= parentIndent) {
+                    break; // fell out of the parent's block
+                }
+                if (indent == childIndent && path.get(matched).equals(keyOf(line))) {
+                    found = i;
+                    break;
+                }
+            }
+            if (found == -1) {
+                break; // this segment (and everything below it) needs to be inserted
+            }
+            // Descend into the matched key's own block.
+            parentIndent = childIndent;
+            start = found + 1;
+            var blockEnd = end;
+            for (var i = found + 1; i < end; i++) {
+                var line = lines.get(i);
+                if (!isSkippable(line) && indentOf(line) <= childIndent) {
+                    blockEnd = i;
+                    break;
+                }
+            }
+            end = blockEnd;
+        }
+
+        if (matched == path.size()) {
+            return text; // fully present already (guarded by the caller, but be safe)
+        }
+
+        // Insert at the bottom of the deepest matched block, above any trailing blank lines.
+        var insertAt = end;
+        while (insertAt > start && lines.get(insertAt - 1).strip().isEmpty()) {
+            insertAt--;
+        }
+        var baseIndent = parentIndent + step;
+        var newLines = new ArrayList<String>();
+        for (var d = matched; d < path.size(); d++) {
+            var indent = " ".repeat(baseIndent + (d - matched) * step);
+            var last = d == path.size() - 1;
+            newLines.add(indent + path.get(d) + (last ? ": " + value : ":"));
+        }
+        lines.addAll(insertAt, newLines);
+        return String.join(eol, lines);
+    }
+
+    static int detectStep(List<String> lines) {
+        var min = Integer.MAX_VALUE;
+        for (var line : lines) {
+            if (isSkippable(line)) {
+                continue;
+            }
+            var indent = indentOf(line);
+            if (indent > 0) {
+                min = Math.min(min, indent);
+            }
+        }
+        return min == Integer.MAX_VALUE ? 2 : min;
+    }
+
+    static int indentOf(String line) {
+        var i = 0;
+        while (i < line.length() && line.charAt(i) == ' ') {
+            i++;
+        }
+        return i;
+    }
+
+    static boolean isSkippable(String line) {
+        var t = line.strip();
+        return t.isEmpty() || t.startsWith("#");
+    }
+
+    static String keyOf(String line) {
+        var t = line.strip();
+        if (t.isEmpty() || t.startsWith("#")) {
+            return null;
+        }
+        var colon = t.indexOf(':');
+        return colon < 0 ? null : t.substring(0, colon).strip();
+    }
+
+    static boolean propertiesHasKey(String text, String key) {
+        for (var raw : text.split("\\R", -1)) {
+            var line = raw.strip();
+            if (line.isEmpty() || line.startsWith("#") || line.startsWith("!")) {
+                continue;
+            }
+            var end = line.length();
+            for (var i = 0; i < line.length(); i++) {
+                var c = line.charAt(i);
+                if (c == '=' || c == ':' || Character.isWhitespace(c)) {
+                    end = i;
+                    break;
+                }
+            }
+            if (line.substring(0, end).equals(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True if the flattened, dot-joined form of the YAML contains {@code key}. */
+    static boolean yamlHasKey(Map<String, Object> root, String key) {
+        var flat = new LinkedHashMap<String, Object>();
+        flatten("", root, flat);
+        return flat.containsKey(key);
+    }
+
+    static void flatten(String prefix, Map<?, ?> map, Map<String, Object> out) {
+        for (var e : map.entrySet()) {
+            var k = prefix.isEmpty() ? String.valueOf(e.getKey()) : prefix + "." + e.getKey();
+            if (e.getValue() instanceof Map<?, ?> nested) {
+                flatten(k, nested, out);
+            }
+            else {
+                out.put(k, e.getValue());
+            }
+        }
+    }
+
+    static Map<String, Object> asStringKeyedMap(Object loaded) {
+        var out = new LinkedHashMap<String, Object>();
+        if (loaded instanceof Map<?, ?> m) {
+            for (var e : m.entrySet()) {
+                out.put(String.valueOf(e.getKey()), e.getValue());
+            }
+        }
+        return out;
     }
 
 }
