@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-
-
-claude "please fix grammar and spellchecking errors in the $1 file, preserving my asciidoctor formatting. i want this to read as though the New York Times grammar mavens scrutinized every character. after you are done, please identify any places where the content flows poorly. also, identify content that might be duplicative."
+echo "starting Claude to fix: [$1] "
+PROMPT="Please fix the grammar and spelling errors in the file $1. Ensure that my AsciiDoc syntax is correct. I want this to read as though the *New York Times* grammar mavens scrutinized every character. Once you are finished, please provide a list of locations where the content flows poorly, the transitions are unclear, or critical information may be missing for the user. Finally, please identify any areas where a diagram might enhance clarity."
+claude --permission-mode auto  "$PROMPT"
