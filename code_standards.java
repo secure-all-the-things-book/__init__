@@ -141,7 +141,9 @@ void process(Path pom, boolean preflight) throws Exception {
     var javaVersion = "25";
     var springCloudVersion = "2025.1.2";
     var springModulithVersion = "2.1.0";
+    var version = "1.0.0-SNAPSHOT";
     var processors = List.of(
+            new VersionMavenProjectTransformer (version),//
             new GroupIdMavenProjectTransformer("com.secureallthethingsbook"), //
             new SpringBootParentVersionMavenProjectTransformer(springBootVersion), //
             new JavaformatPluginAddingMavenProjectTransformer(mavenJavaFormatMavenPlugin), //
@@ -239,6 +241,36 @@ static class JavaformatPluginAddingMavenProjectTransformer implements MavenProje
         plugins.appendChild(buildPluginElement(doc.pom(), groupId, artifactId, version));
     }
 
+}
+
+static class VersionMavenProjectTransformer implements MavenProjectTransformer {
+
+    private final String version;
+
+    VersionMavenProjectTransformer(String version) {
+        this.version = version;
+    }
+
+    @Override
+    public void acceptWithException(MavenProject mp) throws Exception {
+        var doc = mp.pom();
+        var project = doc.getDocumentElement();
+        var versionEl = firstChildElement(project, "version");
+        if (versionEl == null) {
+            versionEl = doc.createElement("version");
+            // keep the conventional gid/aid/version ordering when we have to create it
+            var artifactId = firstChildElement(project, "artifactId");
+            if (artifactId != null) {
+                project.insertBefore(versionEl, artifactId.getNextSibling());
+            }//
+            else {
+                project.appendChild(versionEl);
+            }
+        }
+        if (!version.equals(versionEl.getTextContent().trim())) {
+            versionEl.setTextContent(this.version);
+        }
+    }
 }
 
 static class GroupIdMavenProjectTransformer implements MavenProjectTransformer {
