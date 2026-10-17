@@ -1,5 +1,5 @@
 //usr/bin/env jbang "$0" "$@" ; exit $?
-//JAVA 25
+//JAVA 27
 //DEPS org.springframework.boot:spring-boot-starter:4.1.0
 //SOURCES utils.java
 
@@ -26,7 +26,7 @@ private boolean isDirectory(Path path) {
 private Callable<Void> buildCallable(Path path) {
     return () -> {
         try {
-            var proc = Runner.runAndReturnProcess(path, "git", "pull");
+            var proc = Runner.runAndReturnProcess(path.getParent(), "git", "pull");
             try (var in = proc.getInputStream()) {
                 var output = new String(in.readAllBytes());
                 if (!output.isBlank() && !output.contains("Already up to date."))

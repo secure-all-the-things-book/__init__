@@ -1,5 +1,5 @@
 //usr/bin/env jbang "$0" "$@" ; exit $?
-//JAVA 25
+//JAVA 27
 //SOURCES utils.java
 
 void main() throws Exception {
@@ -8,6 +8,6 @@ void main() throws Exception {
     for (var l : lines) {
         var trimLine = l.trim();
         if (!trimLine.isEmpty())
-            Runner.runAndReturnProcess(f, "docker", "rm", "-f", trimLine);
+            Runner.runAndReturnOutputLines(f, "docker", "rm", "-f", trimLine);
     }
 }

@@ -6,18 +6,20 @@ import java.io.*;
 class Runner {
 
 
-    static List<String> runAndReturnOutputLines(Path p, String... cmd) throws IOException, InterruptedException {
-        var ps = runAndReturnProcess(p, cmd);
+    static List<String> runAndReturnOutputLines(Path dir, String... cmd) throws IOException, InterruptedException {
+        var ps = runAndReturnProcess(dir, cmd);
         try (var r = new BufferedReader(new InputStreamReader(ps.getInputStream()))) {
-            return r.readAllLines();
+            var lines = r.readAllLines();
+            ps.waitFor();
+            return lines;
         }
     }
 
-    static Process runAndReturnProcess(Path path, String... cmd) throws IOException, InterruptedException {
-        var repo = path.getParent().toAbsolutePath().normalize();
-        var p = new ProcessBuilder(cmd).directory(repo.toFile()).redirectErrorStream(true).start();
-        p.waitFor();
-        return p;
+    // NB: doesn't wait for the process to exit: callers must drain its output first,
+    // otherwise a chatty process fills the pipe buffer and blocks forever
+    static Process runAndReturnProcess(Path dir, String... cmd) throws IOException {
+        var cwd = dir.toAbsolutePath().normalize();
+        return new ProcessBuilder(cmd).directory(cwd.toFile()).redirectErrorStream(true).start();
     }
 
     static Process runButDontWait(Path dir, String... cmd) throws IOException, InterruptedException {
