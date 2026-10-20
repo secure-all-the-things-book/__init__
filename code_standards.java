@@ -4,11 +4,11 @@
 //SOURCES utils.java
 
 import org.springframework.util.function.ThrowingConsumer;
-import org.yaml.snakeyaml.Yaml;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.yaml.snakeyaml.Yaml;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
@@ -18,6 +18,65 @@ import javax.xml.transform.stream.StreamResult;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
+
+void main() throws Exception {
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor();) {
+        var start = System.currentTimeMillis();
+        var callables = new ArrayList<Callable<Void>>();
+        var root = Paths.get(".");
+        var preflight = false;
+        try (var paths = Files.walk(root)) {
+            var poms = paths
+                    .filter(Files::isRegularFile)
+                    .filter(p -> p.getFileName().toString().equals("pom.xml"))
+                    .toList();
+            for (var pom : poms)
+                callables.add(() -> {
+                    process(pom, preflight);
+                    return null;
+                });
+            executor.invokeAll(callables);
+            var stop = System.currentTimeMillis();
+            IO.println("total time in ms.:" + (stop - start));
+        }
+    }
+}
+
+void process(Path pom, boolean preflight) throws Exception {
+    var springBootVersion = "4.1.1";
+    var mavenJavaFormatMavenPlugin = "0.0.47";
+    var springAiVersion = "2.0.1";
+    var javaVersion = "25";
+    var springCloudVersion = "2025.1.3";
+    var springModulithVersion = "2.1.1";
+    var version = "1.0.0-SNAPSHOT";
+    var processors = List.of(
+            new VersionMavenProjectTransformer(version),//
+            new GroupIdMavenProjectTransformer("com.secureallthethingsbook"), //
+            new SpringBootParentVersionMavenProjectTransformer(springBootVersion), //
+            new JavaformatPluginAddingMavenProjectTransformer(mavenJavaFormatMavenPlugin), //
+            new JavaformatPluginApplyingMavenProjectTransformer(),
+            new PropertiesOverridingMavenProjectTransformer("java.version", javaVersion),
+            new PropertiesOverridingMavenProjectTransformer("spring-ai.version", springAiVersion),
+            new PropertiesOverridingMavenProjectTransformer("spring-cloud.version", springCloudVersion),
+            new PropertiesOverridingMavenProjectTransformer("spring-modulith.version", springModulithVersion),
+            new VirtualThreadsEnabledMavenProjectTransformer()
+    );
+
+    var dbf = DocumentBuilderFactory.newInstance();
+    dbf.setNamespaceAware(false);
+    dbf.setIgnoringElementContentWhitespace(true);
+
+    var doc = dbf.newDocumentBuilder().parse(pom.toFile());
+    doc.getDocumentElement().normalize();
+
+    var mavenProject = new MavenProject(pom, doc);
+
+    for (var p : processors) {
+        p.accept(mavenProject);
+        write(doc, preflight, pom);
+    }
+}
 
 private static void write(Document doc, boolean preflight, Path pom) throws Exception {
     stripWhitespaceNodes(doc);
@@ -72,7 +131,6 @@ static Element ensurePluginsElement(Document doc) {
     }
     return plugins;
 }
-
 static Element buildPluginElement(Document doc, String groupId, String artifactId, String version) {
     var plugin = doc.createElement("plugin");
     plugin.appendChild(textElement(doc, "groupId", groupId));
@@ -82,6 +140,7 @@ static Element buildPluginElement(Document doc, String groupId, String artifactI
 }
 
 // --- small DOM helpers ---
+
 static Element firstChildElement(Element parent, String name) {
     var children = parent.getChildNodes();
     for (var i = 0; i < children.getLength(); i++) {
@@ -109,65 +168,6 @@ static void write(Document doc, Writer pom) throws Exception {
     t.setOutputProperty(OutputKeys.INDENT, "yes");
     t.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
     t.transform(new DOMSource(doc), new StreamResult(pom));
-}
-
-void main() throws Exception {
-    try (var executor = Executors.newVirtualThreadPerTaskExecutor();) {
-        var start = System.currentTimeMillis();
-        var callables = new ArrayList<Callable<Void>>();
-        var root = Paths.get(".");
-        var preflight = false;
-        try (var paths = Files.walk(root)) {
-            var poms = paths
-                    .filter(Files::isRegularFile)
-                    .filter(p -> p.getFileName().toString().equals("pom.xml"))
-                    .toList();
-            for (var pom : poms)
-                callables.add(() -> {
-                    process(pom, preflight);
-                    return null;
-                });
-            executor.invokeAll(callables);
-            var stop = System.currentTimeMillis();
-            IO.println("total time in ms.:" + (stop - start));
-        }
-    }
-}
-
-void process(Path pom, boolean preflight) throws Exception {
-    var springBootVersion = "4.1.0";
-    var mavenJavaFormatMavenPlugin = "0.0.47";
-    var springAiVersion = "2.0.0";
-    var javaVersion = "25";
-    var springCloudVersion = "2025.1.2";
-    var springModulithVersion = "2.1.0";
-    var version = "1.0.0-SNAPSHOT";
-    var processors = List.of(
-            new VersionMavenProjectTransformer (version),//
-            new GroupIdMavenProjectTransformer("com.secureallthethingsbook"), //
-            new SpringBootParentVersionMavenProjectTransformer(springBootVersion), //
-            new JavaformatPluginAddingMavenProjectTransformer(mavenJavaFormatMavenPlugin), //
-            new JavaformatPluginApplyingMavenProjectTransformer(),
-            new PropertiesOverridingMavenProjectTransformer("java.version", javaVersion),
-            new PropertiesOverridingMavenProjectTransformer("spring-ai.version", springAiVersion),
-            new PropertiesOverridingMavenProjectTransformer("spring-cloud.version", springCloudVersion),
-            new PropertiesOverridingMavenProjectTransformer("spring-modulith.version", springModulithVersion),
-            new VirtualThreadsEnabledMavenProjectTransformer()
-    );
-
-    var dbf = DocumentBuilderFactory.newInstance();
-    dbf.setNamespaceAware(false);
-    dbf.setIgnoringElementContentWhitespace(true);
-
-    var doc = dbf.newDocumentBuilder().parse(pom.toFile());
-    doc.getDocumentElement().normalize();
-
-    var mavenProject = new MavenProject(pom, doc);
-
-    for (var p : processors) {
-        p.accept(mavenProject);
-        write(doc, preflight, pom);
-    }
 }
 
 interface MavenProjectTransformer extends ThrowingConsumer<MavenProject> {
@@ -530,7 +530,9 @@ static class VirtualThreadsEnabledMavenProjectTransformer implements MavenProjec
         return false;
     }
 
-    /** True if the flattened, dot-joined form of the YAML contains {@code key}. */
+    /**
+     * True if the flattened, dot-joined form of the YAML contains {@code key}.
+     */
     static boolean yamlHasKey(Map<String, Object> root, String key) {
         var flat = new LinkedHashMap<String, Object>();
         flatten("", root, flat);
@@ -542,8 +544,7 @@ static class VirtualThreadsEnabledMavenProjectTransformer implements MavenProjec
             var k = prefix.isEmpty() ? String.valueOf(e.getKey()) : prefix + "." + e.getKey();
             if (e.getValue() instanceof Map<?, ?> nested) {
                 flatten(k, nested, out);
-            }
-            else {
+            } else {
                 out.put(k, e.getValue());
             }
         }
